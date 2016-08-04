@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html ng-app="app">
+<head>
+	<title></title>
+	<meta charset="utf-8">
+	<!-- <script lang="javascript" src="dist/xlsx.core.min.js"></script> -->
+	<link rel="stylesheet" type="text/css" href="semantic.css">
+	<script src="shim.js"></script>
+	<script src="jszip.js"></script>
+	<script src="xlsx.js"></script>
+	<script type="text/javascript" src="jquery-1.11.3.min.js"></script>
+	<script type="text/javascript" src="jquery.csv.min.js"></script>
+	<script type="text/javascript" src="angular.js"></script>
+	<script type="text/javascript" src="dirPagination.min.js"></script>
+</head>
+<body>
+<div ng-controller="Ctr">
+<input type="file" name="xlfile" id="xlf" />
+<button class="ui button" ng-click="show()">click</button>
+<a class="ui button" ng-repeat="item in data.sheetName" ng-click="getTable($index)">{{item}}</a>
+<table class="table ui celled ">
+	<tr dir-paginate="item in sheetData| itemsPerPage: 10 track by $index"  pagination-id="demo"">
+		<td ng-repeat="iten in item track by $index">{{iten}}</td>
+	</tr>
+</table>
+<dir-pagination-controls pagination-id="demo" on-page-change="pageChanged(newPageNumber)" max-size="10" direction-links="true" boundary-links="true"></dir-pagination-controls>
+</div>
+<script type="text/javascript">
+	
+	angular.module("app",['angularUtils.directives.dirPagination']).controller("Ctr",function($scope,$timeout){
+		$scope.data={
+			sheetName:[],
+			table:{}
+		};
+		$scope.sheetData=[];
+		$scope.getTable = function(index){
+			console.log("index: "+index);
+			$scope.sheetData = [];
+			$scope.sheetData = $scope.data.table[index];
+			console.log($scope.sheetData);
+			/*angular.forEach($scope.sheetData,function(item){
+
+			});*/
+		};
+
+		var X = XLSX;
+	
+		function fixdata(data) {
+			var o = "", l = 0, w = 10240;
+			for(; l<data.byteLength/w; ++l) o+=String.fromCharCode.apply(null,new Uint8Array(data.slice(l*w,l*w+w)));
+			o+=String.fromCharCode.apply(null, new Uint8Array(data.slice(l*w)));
+			return o;
+		}
+		function process_wb(wb) {
+			var arry = to_csv(wb);
+			$timeout(function(){
+				//$scope.data.sheetName = arry.sheetName;
+				angular.forEach($scope.data.sheetName,function(item,index){					
+					$scope.data.table[index] = arry[item];
+				});
+				console.log($scope.data);
+			},10);
+			
+			console.log(arry);
+
+		}
+		function to_csv(workbook) {
+			var result = {
+				sheetName:[]				
+			};
+			workbook.SheetNames.forEach(function(sheetName,index) {
+
+
+				$timeout(function(){$scope.data.sheetName.push(sheetName);},10);
+
+				result.sheetName.push(sheetName);
+				result[sheetName]=[];
+				var csv = X.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+				console.log("csv");
+				console.log(csv);
+				//console.log(csv.split("\n"));
+				if(csv.length > 0){	
+					// var arr = new CSV(csv).parse();
+					// var arr = csv.split("\n"); 	
+					var arr = $.csv.toArrays(csv);
+					var length = arr.length;
+					console.log(length);
+					console.log(arr);
+					result[sheetName] = arr;
+				}
+			});
+			return result;
+		}
+		//$scope.wb
+		function getOneCsv(workbook,index){
+			var sheetName = [index];
+			var csv = X.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+
+		}
+
+		$scope.show=function(){
+			var file = document.getElementById('xlf').files[0];
+			console.log(file);
+			var name = file.name;
+			var size = file.size;
+			console.log("name:"+name+" size:"+size);
+
+			var reader = new FileReader();
+			reader.readAsArrayBuffer(file);
+			reader.onload = function(e){
+				var data = e.target.result;
+				var arr = fixdata(data);
+				$scope.wb = X.read(btoa(arr), {type: 'base64'});
+				process_wb($scope.wb);
+			}
+			//reader.readAsArrayBuffer(file);
+		}
+	});
+	
+</script>
+</body>
+</html>
